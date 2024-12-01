@@ -1,6 +1,8 @@
+import numpy as np
 import os.path as osp
 import os
 import sys
+import cv2
 import time
 import argparse
 from tqdm import tqdm
@@ -20,6 +22,7 @@ from utils.lr_policy import WarmUpPolyLR
 from engine.engine import Engine
 from engine.logger import get_logger
 from utils.pyt_utils import all_reduce_tensor
+from utils.visualize import show_mask
 
 from tensorboardX import SummaryWriter
 
@@ -109,7 +112,7 @@ with Engine(custom_parser=parser) as engine:
         for idx in pbar:
             engine.update_iteration(epoch, idx)
 
-            minibatch = dataloader.next()
+            minibatch = next(dataloader)
             imgs = minibatch['data']
             gts = minibatch['label']
             modal_xs = minibatch['modal_x']

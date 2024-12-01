@@ -2,13 +2,15 @@ import os
 import cv2
 import argparse
 import numpy as np
+from PIL import Image
+from pathlib import Path
 
 import torch
 import torch.nn as nn
 
 from config import config
 from utils.pyt_utils import ensure_dir, link_file, load_model, parse_devices
-from utils.visualize import print_iou, show_img
+from utils.visualize import print_iou, show_img, color_mask
 from engine.evaluator import Evaluator
 from engine.logger import get_logger
 from utils.metric import hist_info, compute_score
@@ -20,42 +22,43 @@ logger = get_logger()
 
 class SegEvaluator(Evaluator):
     def func_per_iteration(self, data, device):
-        img = data['data']
-        label = data['label']
-        modal_x = data['modal_x']
+        img = data['data'].cpu().numpy()
+        label = data['label'].cpu().numpy()
+        modal_x = data['modal_x'].cpu().numpy()
         name = data['fn']
         pred = self.sliding_eval_rgbX(img, modal_x, config.eval_crop_size, config.eval_stride_rate, device)
         hist_tmp, labeled_tmp, correct_tmp = hist_info(config.num_classes, pred, label)
         results_dict = {'hist': hist_tmp, 'labeled': labeled_tmp, 'correct': correct_tmp}
 
-        if self.save_path is not None:
-            ensure_dir(self.save_path)
-            ensure_dir(self.save_path+'_color')
-
-            fn = name + '.png'
-
-            # save colored result
-            result_img = Image.fromarray(pred.astype(np.uint8), mode='P')
-            class_colors = get_class_colors()
-            palette_list = list(np.array(class_colors).flat)
-            if len(palette_list) < 768:
-                palette_list += [0] * (768 - len(palette_list))
-            result_img.putpalette(palette_list)
-            result_img.save(os.path.join(self.save_path+'_color', fn))
-
-            # save raw result
-            cv2.imwrite(os.path.join(self.save_path, fn), pred)
-            logger.info('Save the image ' + fn)
-
-        if self.show_image:
-            colors = self.dataset.get_class_colors
+        if self.save_path is not None or self.show_image:
+            colors = self.dataset.get_class_colors()
             image = img
             clean = np.zeros(label.shape)
             comp_img = show_img(colors, config.background, image, clean,
                                 label,
                                 pred)
-            cv2.imshow('comp_image', comp_img)
-            cv2.waitKey(0)
+            if self.save_path is not None:
+                # ensure the directories
+                save_path = self.save_path + '/' + '/'.join(name.split('/')[:-1])
+                filename = name.split('/')[-1].split('.')[0] + '.png'
+                ensure_dir(save_path)
+                # result_img = Image.fromarray(pred.astype(np.uint8), mode='P')
+                # palette_list = list(np.array(colors).flat)
+                # if len(palette_list) < 768:
+                #     palette_list += [0] * (768 - len(palette_list))
+                # result_img.putpalette(palette_list)
+                result_img = color_mask(pred.astype(np.uint8), colors)
+                # result_img.save(os.path.join(save_path, filename))
+                cv2.imwrite(os.path.join(save_path, filename), result_img)
+
+                # save raw result
+                cv2.imwrite(os.path.join(save_path, filename, '_raw.png'), pred)
+                logger.info('Save the image ' + filename)
+
+                
+            if self.show_image: 
+                cv2.imshow('comp_image', comp_img)
+                cv2.waitKey(0)
 
         return results_dict
 
@@ -88,18 +91,17 @@ if __name__ == "__main__":
     all_dev = parse_devices(args.devices)
 
     network = segmodel(cfg=config, criterion=None, norm_layer=nn.BatchNorm2d)
-    data_setting = {'rgb_root': config.rgb_root_folder,
-                    'rgb_format': config.rgb_format,
-                    'gt_root': config.gt_root_folder,
-                    'gt_format': config.gt_format,
-                    'transform_gt': config.gt_transform,
-                    'x_root':config.x_root_folder,
-                    'x_format': config.x_format,
-                    'x_single_channel': config.x_is_single_channel,
-                    'class_names': config.class_names,
-                    'train_source': config.train_source,
-                    'eval_source': config.eval_source,
-                    'class_names': config.class_names}
+    data_setting = {
+        'rgb_root': config.rgb_root_folder,
+        'rgb_format': config.rgb_format,
+        'transform_gt': False,
+        'x_root': config.x_root_folder,
+        'x_format': config.x_format,
+        'x_single_channel': config.x_is_single_channel,
+        'class_names': config.class_names,
+        'train_json': config.train_json,
+        'val_json': config.val_json,
+    }
     val_pre = ValPre()
     dataset = RGBXDataset(data_setting, 'val', val_pre)
  

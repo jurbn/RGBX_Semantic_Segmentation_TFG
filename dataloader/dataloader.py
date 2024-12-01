@@ -41,7 +41,7 @@ class TrainPre(object):
         crop_pos = generate_random_crop_pos(rgb.shape[:2], crop_size)
 
         p_rgb, _ = random_crop_pad_to_shape(rgb, crop_pos, crop_size, 0)
-        p_gt, _ = random_crop_pad_to_shape(gt, crop_pos, crop_size, 255)
+        p_gt, _ = random_crop_pad_to_shape(gt, crop_pos, crop_size, 0)
         p_modal_x, _ = random_crop_pad_to_shape(modal_x, crop_pos, crop_size, 0)
 
         p_rgb = p_rgb.transpose(2, 0, 1)
@@ -54,37 +54,35 @@ class ValPre(object):
         return rgb, gt, modal_x
 
 def get_train_loader(engine, dataset):
-    data_setting = {'rgb_root': config.rgb_root_folder,
-                    'rgb_format': config.rgb_format,
-                    'gt_root': config.gt_root_folder,
-                    'gt_format': config.gt_format,
-                    'transform_gt': config.gt_transform,
-                    'x_root':config.x_root_folder,
-                    'x_format': config.x_format,
-                    'x_single_channel': config.x_is_single_channel,
-                    'class_names': config.class_names,
-                    'train_source': config.train_source,
-                    'eval_source': config.eval_source,
-                    'class_names': config.class_names}
+    data_setting = {
+        'rgb_root': config.rgb_root_folder,
+        'rgb_format': config.rgb_format,
+        'transform_gt': False,
+        'x_root': config.x_root_folder,
+        'x_format': config.x_format,
+        'x_single_channel': config.x_is_single_channel,
+        'class_names': config.class_names,
+        'train_json': config.train_json,
+        'val_json': config.val_json,
+    }
     train_preprocess = TrainPre(config.norm_mean, config.norm_std)
-
-    train_dataset = dataset(data_setting, "train", train_preprocess, config.batch_size * config.niters_per_epoch)
-
+    train_dataset = dataset(
+        data_setting, "train", train_preprocess, config.batch_size * config.niters_per_epoch
+    )
     train_sampler = None
     is_shuffle = True
     batch_size = config.batch_size
-
     if engine.distributed:
         train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset)
         batch_size = config.batch_size // engine.world_size
         is_shuffle = False
-
-    train_loader = data.DataLoader(train_dataset,
-                                   batch_size=batch_size,
-                                   num_workers=config.num_workers,
-                                   drop_last=True,
-                                   shuffle=is_shuffle,
-                                   pin_memory=True,
-                                   sampler=train_sampler)
-
+    train_loader = data.DataLoader(
+        train_dataset,
+        batch_size=batch_size,
+        num_workers=config.num_workers,
+        drop_last=True,
+        shuffle=is_shuffle,
+        pin_memory=True,
+        sampler=train_sampler
+    )
     return train_loader, train_sampler

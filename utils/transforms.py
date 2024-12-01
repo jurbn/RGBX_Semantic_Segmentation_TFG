@@ -10,7 +10,7 @@ import collections
 
 
 def get_2dshape(shape, *, zero=True):
-    if not isinstance(shape, collections.Iterable):
+    if not isinstance(shape, collections.abc.Iterable):
         shape = int(shape)
         shape = (shape, shape)
     else:
@@ -181,7 +181,7 @@ def random_crop(img, gt, size):
 
 def normalize(img, mean, std):
     # pytorch pretrained model need the input range: 0-1
-    img = img.astype(np.float64) / 255.0
+    img = img.astype(np.float32) / 255.0
     img = img - mean
     img = img / std
     return img

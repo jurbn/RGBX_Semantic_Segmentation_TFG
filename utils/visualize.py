@@ -74,3 +74,28 @@ def print_iou(iou, freq_IoU, mean_pixel_acc, pixel_acc, class_names=None, show_n
     return line
 
 
+def show_mask(mask, colors=None):
+    # if no colors are provided, generate an all white mask
+    if colors is None:
+        colors = [[0, 0, 0]]    # black background
+        # per each class, white color
+        for _ in range(mask.max()):
+            colors.append([255, 255, 255])
+    # create an empty image
+    img = np.zeros((mask.shape[0], mask.shape[1], 3), dtype=np.uint8)
+    # for each class, set the color
+    for i in range(mask.max() + 1):
+        img[np.where(mask == i)] = colors[i]
+    return img
+
+def color_mask(mask, colors):
+    """
+    Assign colors to a mask image.
+    Args:
+        mask: a PIL Image with a single channel
+        colors: a list of RGB colors
+    """
+    colored_mask = np.zeros((mask.shape[0], mask.shape[1], 3), dtype=np.uint8)
+    for i in range(len(colors)):
+        colored_mask[mask == i] = colors[i]
+    return colored_mask
