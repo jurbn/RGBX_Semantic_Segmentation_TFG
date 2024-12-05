@@ -19,10 +19,12 @@ from models.builder import EncoderDecoder as segmodel
 from dataloader.RGBXDataset import RGBXDataset
 from utils.init_func import init_weight, group_weight
 from utils.lr_policy import WarmUpPolyLR
+from utils.dropout_policy import PolicyDR
 from engine.engine import Engine
 from engine.logger import get_logger
 from utils.pyt_utils import all_reduce_tensor
 from utils.visualize import show_mask
+from utils.train_utils import modality_dropout_batch
 
 from tensorboardX import SummaryWriter
 
@@ -80,6 +82,9 @@ with Engine(custom_parser=parser) as engine:
     total_iteration = config.nepochs * config.niters_per_epoch
     lr_policy = WarmUpPolyLR(base_lr, config.lr_power, total_iteration, config.niters_per_epoch * config.warm_up_epoch)
 
+    # config dropout policy
+    dropout_policy = PolicyDR(config.dropout_rate)
+
     if engine.distributed:
         logger.info('.............distributed training.............')
         if torch.cuda.is_available():
@@ -122,6 +127,8 @@ with Engine(custom_parser=parser) as engine:
             modal_xs = modal_xs.cuda(non_blocking=True)
 
             aux_rate = 0.2
+            dropout = dropout_policy.get_drop_rate(epoch)
+            imgs, modal_xs = modality_dropout_batch(imgs, modal_xs, p=dropout)
             loss = model(imgs, modal_xs, gts)
 
             # reduce the whole loss over multi-gpu

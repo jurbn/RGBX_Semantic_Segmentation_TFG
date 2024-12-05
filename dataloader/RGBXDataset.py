@@ -7,7 +7,7 @@ import numpy as np
 from pycocotools.coco import COCO
 import torch.utils.data as data
 
-from src.depth2hha.getHHA import getHHA
+from src.utils.postprocessing import depth_to_jet
 
 class RGBXDataset(data.Dataset):
     def __init__(self, setting, split_name, preprocess=None, file_length=None):
@@ -53,11 +53,12 @@ class RGBXDataset(data.Dataset):
             # Paths for RGB and additional modality X
             rgb_path = os.path.join(self._rgb_path, video_id, 'color', f"{frame_id}{self._rgb_format}")
             x_path = os.path.join(self._x_path, video_id, 'depth', f"{frame_id}{self._x_format}")
-            intrinsics_path = os.path.join(self._rgb_path, video_id, 'intrinsics.json')
 
             # Load images
             rgb = self._open_image(rgb_path, cv2.COLOR_BGR2RGB)
             x = self._open_image(x_path, cv2.IMREAD_ANYCOLOR | cv2.IMREAD_ANYDEPTH if self._x_single_channel else cv2.COLOR_BGR2RGB)
+            
+            x = depth_to_jet(x)
 
             if rgb is None or x is None:
                 raise FileNotFoundError(f"Image not found: {video_id}-{frame_id}")
@@ -81,7 +82,7 @@ class RGBXDataset(data.Dataset):
             # Convert to tensors
             rgb = torch.from_numpy(np.ascontiguousarray(rgb)).float()
             gt = torch.from_numpy(np.ascontiguousarray(gt))
-            x = torch.from_numpy(np.ascontiguousarray(x)).float()
+            x = torch.from_numpy(np.ascontiguousarray(x)).float() * 0.0
 
             output_dict = dict(data=rgb, label=gt, modal_x=x, fn=img_name, n=len(self.imgIds))
             return output_dict
@@ -104,7 +105,8 @@ class RGBXDataset(data.Dataset):
 
     @staticmethod
     def _open_image(filepath, mode=cv2.IMREAD_COLOR):
-        return cv2.imread(filepath, mode)
+        # always add cv2.IMREAD_UNCHANGED to read the image as it is
+        return cv2.imread(filepath, mode | cv2.IMREAD_UNCHANGED)
 
     @staticmethod
     def _gt_transform(gt):
