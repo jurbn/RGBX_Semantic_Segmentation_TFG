@@ -7,7 +7,8 @@ import numpy as np
 from pycocotools.coco import COCO
 import torch.utils.data as data
 
-from src.utils.postprocessing import depth_to_jet
+from src.utils.postprocessing import depth_to_jet, depth_to_normal, equalize_histogram
+from utils.transforms import normalize
 
 class RGBXDataset(data.Dataset):
     def __init__(self, setting, split_name, preprocess=None, file_length=None):
@@ -57,8 +58,8 @@ class RGBXDataset(data.Dataset):
             # Load images
             rgb = self._open_image(rgb_path, cv2.COLOR_BGR2RGB)
             x = self._open_image(x_path, cv2.IMREAD_ANYCOLOR | cv2.IMREAD_ANYDEPTH if self._x_single_channel else cv2.COLOR_BGR2RGB)
-            
-            x = depth_to_jet(x)
+
+            x = depth_to_jet(x, equalize=True)
 
             if rgb is None or x is None:
                 raise FileNotFoundError(f"Image not found: {video_id}-{frame_id}")
@@ -82,7 +83,7 @@ class RGBXDataset(data.Dataset):
             # Convert to tensors
             rgb = torch.from_numpy(np.ascontiguousarray(rgb)).float()
             gt = torch.from_numpy(np.ascontiguousarray(gt))
-            x = torch.from_numpy(np.ascontiguousarray(x)).float() * 0.0
+            x = torch.from_numpy(np.ascontiguousarray(x)).float()
 
             output_dict = dict(data=rgb, label=gt, modal_x=x, fn=img_name, n=len(self.imgIds))
             return output_dict

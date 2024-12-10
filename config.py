@@ -60,7 +60,7 @@ C.decoder_embed_dim = 512
 C.optimizer = 'AdamW'
 
 """Train Config"""
-C.lr = 6e-5
+C.lr = 1e-5
 C.lr_power = 0.9
 C.momentum = 0.9
 C.weight_decay = 0.01
@@ -70,7 +70,7 @@ C.num_train_imgs = len(train_coco.getImgIds())
 C.num_eval_imgs = len(COCO(C.val_json).getImgIds())  # Dynamic count based on COCO data
 C.nepochs = 500
 C.niters_per_epoch = C.num_train_imgs // C.batch_size + 1
-C.num_workers = 0
+C.num_workers = 16
 C.train_scale_array = [0.5, 0.75, 1, 1.25, 1.5, 1.75]
 C.warm_up_epoch = 10
 
@@ -95,7 +95,7 @@ def add_path(path):
         sys.path.insert(0, path)
 add_path(osp.join(C.root_dir))
 
-C.log_dir = osp.abspath('out/log_' + C.dataset_name + '_' + C.backbone + '_' + 'pretrained' + '_jet_dropout')
+C.log_dir = osp.abspath('out/log_' + C.dataset_name + '_' + C.backbone + '_' + 'pretrained' + '_eq_jet_dropout')
 C.tb_dir = osp.abspath(osp.join(C.log_dir, "tb"))
 C.log_dir_link = C.log_dir
 C.checkpoint_dir = osp.abspath(osp.join(C.log_dir, "checkpoint"))

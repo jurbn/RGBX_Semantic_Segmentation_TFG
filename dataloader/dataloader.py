@@ -51,6 +51,8 @@ class TrainPre(object):
 
 class ValPre(object):
     def __call__(self, rgb, gt, modal_x):
+        rgb = normalize(rgb, config.norm_mean, config.norm_std)
+        modal_x = normalize(modal_x, config.norm_mean, config.norm_std)
         return rgb, gt, modal_x
 
 def get_train_loader(engine, dataset):
