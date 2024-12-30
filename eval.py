@@ -4,6 +4,7 @@ import argparse
 import numpy as np
 from PIL import Image
 from pathlib import Path
+import matplotlib.pyplot as plt
 
 import torch
 import torch.nn as nn
@@ -17,10 +18,21 @@ from utils.metric import hist_info, compute_score
 from dataloader.RGBXDataset import RGBXDataset
 from models.builder import EncoderDecoder as segmodel
 from dataloader.dataloader import ValPre
+import seaborn as sns
 
 logger = get_logger()
 
+def render_confusion_matrix(confusion_matrix, class_names):
+    plt.figure(figsize=(10, 8))
+    # numbers have one decimal place and NOT show the legend
+    sns.heatmap(confusion_matrix, annot=True, cmap='Blues', xticklabels=class_names, yticklabels=class_names, fmt='.1%', cbar=False)
+    plt.xlabel('Predicted')
+    plt.ylabel('Actual')
+    plt.title('Confusion Matrix')
+    plt.savefig('confusion_matrix_cmx_normal.png')
+
 class SegEvaluator(Evaluator):
+    confusion_matrix = np.zeros((config.num_classes, config.num_classes))
     def func_per_iteration(self, data, device):
         img = data['data'].cpu().numpy()
         label = data['label'].cpu().numpy()
@@ -28,6 +40,7 @@ class SegEvaluator(Evaluator):
         name = data['fn']
         pred = self.sliding_eval_rgbX(img, modal_x, config.eval_crop_size, config.eval_stride_rate, device)
         hist_tmp, labeled_tmp, correct_tmp = hist_info(config.num_classes, pred, label)
+        self.confusion_matrix = np.add(self.confusion_matrix, hist_tmp)
         results_dict = {'hist': hist_tmp, 'labeled': labeled_tmp, 'correct': correct_tmp}
 
         if self.save_path is not None or self.show_image:
@@ -77,6 +90,23 @@ class SegEvaluator(Evaluator):
         result_line = print_iou(iou, freq_IoU, mean_pixel_acc, pixel_acc,
                                 dataset.class_names, show_no_back=False)
         return result_line
+    
+    def process_confusion_matrix(self):
+        """
+        Takes the already built confusion matrix and processes it to get the IoU in percentage.
+        """
+        percentage_iou = np.zeros((config.num_classes, config.num_classes))
+        # for each row, count the number of actual pixels
+        for row in range(config.num_classes):
+            row_sum = np.sum(self.confusion_matrix[row])
+            # for each column, divide the number of correctly classified pixels by the total number of actual pixels
+            for col in range(config.num_classes):
+                percentage_iou[row][col] = self.confusion_matrix[row][col] / row_sum
+        print(percentage_iou)
+        # create an image from the confusion matrix
+        render_confusion_matrix(percentage_iou, config.class_names)
+
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -113,3 +143,4 @@ if __name__ == "__main__":
                                  args.show_image)
         segmentor.run(config.checkpoint_dir, args.epochs, config.val_log_file,
                       config.link_val_log_file)
+        segmentor.process_confusion_matrix()

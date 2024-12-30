@@ -12,7 +12,7 @@ def hist_info(n_cl, pred, gt):
     correct = np.sum((pred[k] == gt[k]))
     confusionMatrix = np.bincount(n_cl * gt[k].astype(int) + pred[k].astype(int),
                         minlength=n_cl ** 2).reshape(n_cl, n_cl)
-    return confusionMatrix, labeled, correct
+    return confusionMatrix, labeled, correct    # these are the confusion matrix, the number of labeled pixels and the number of correct pixels
 
 def compute_score(hist, correct, labeled):
     iou = np.diag(hist) / (hist.sum(1) + hist.sum(0) - np.diag(hist))

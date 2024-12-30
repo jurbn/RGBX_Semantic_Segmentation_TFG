@@ -7,7 +7,7 @@ import numpy as np
 from pycocotools.coco import COCO
 import torch.utils.data as data
 
-from src.utils.postprocessing import depth_to_jet, depth_to_normal, equalize_histogram
+from src.utils.postprocessing import depth_to_colormap, depth_to_normal, equalize_histogram
 from utils.transforms import normalize
 
 class RGBXDataset(data.Dataset):
@@ -58,8 +58,6 @@ class RGBXDataset(data.Dataset):
             # Load images
             rgb = self._open_image(rgb_path, cv2.COLOR_BGR2RGB)
             x = self._open_image(x_path, cv2.IMREAD_ANYCOLOR | cv2.IMREAD_ANYDEPTH if self._x_single_channel else cv2.COLOR_BGR2RGB)
-
-            x = depth_to_jet(x, equalize=True)
 
             if rgb is None or x is None:
                 raise FileNotFoundError(f"Image not found: {video_id}-{frame_id}")
