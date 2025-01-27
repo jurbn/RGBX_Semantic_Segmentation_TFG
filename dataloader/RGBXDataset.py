@@ -78,7 +78,6 @@ class RGBXDataset(data.Dataset):
                 x = np.zeros((480, 640), dtype=np.uint16)
 
             x = depth_to_colormap(x, 'jet', False)
-            print(f"RGB shape: {rgb.shape}, X shape: {x.shape}")
 
             if rgb is None or x is None:
                 raise FileNotFoundError(f"Image not found: {video_id}-{frame_id}")

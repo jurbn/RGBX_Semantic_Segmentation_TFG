@@ -32,7 +32,7 @@ C.val_json = osp.join(C.dataset_path, 'lindenthal_coco', 'val.json') # annotatio
 C.rgb_root_folder = osp.join(C.dataset_path, 'lindenthal_coco', 'images')
 C.rgb_format = '.jpg'
 C.x_root_folder = osp.join(C.dataset_path, 'lindenthal_coco', 'images')  # Adjust to the actual modality folder name
-C.x_format = '.png'#'.exr'  # Change format to your additional modality format
+C.x_format = '.exr'#'.exr'  # Change format to your additional modality format
 C.x_is_single_channel = True  # Set True if using a single-channel additional modality
 
 # Dynamically read class names and count from COCO JSON
