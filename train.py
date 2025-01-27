@@ -127,8 +127,9 @@ with Engine(custom_parser=parser) as engine:
             modal_xs = modal_xs.cuda(non_blocking=True)
 
             aux_rate = 0.2
-            dropout = dropout_policy.get_drop_rate(epoch)
-            imgs, modal_xs = modality_dropout_batch(imgs, modal_xs, p=dropout)
+            if config.modality_dropout:
+                dropout = dropout_policy.get_drop_rate(epoch)
+                imgs, modal_xs = modality_dropout_batch(imgs, modal_xs, p=dropout)
             loss = model(imgs, modal_xs, gts)
 
             # reduce the whole loss over multi-gpu

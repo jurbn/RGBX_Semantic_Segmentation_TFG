@@ -22,15 +22,6 @@ import seaborn as sns
 
 logger = get_logger()
 
-def render_confusion_matrix(confusion_matrix, class_names):
-    plt.figure(figsize=(10, 8))
-    # numbers have one decimal place and NOT show the legend
-    sns.heatmap(confusion_matrix, annot=True, cmap='Blues', xticklabels=class_names, yticklabels=class_names, fmt='.1%', cbar=False)
-    plt.xlabel('Predicted')
-    plt.ylabel('Actual')
-    plt.title('Confusion Matrix')
-    plt.savefig('confusion_matrix_cmx_normal.png')
-
 class SegEvaluator(Evaluator):
     confusion_matrix = np.zeros((config.num_classes, config.num_classes))
     def func_per_iteration(self, data, device):
@@ -65,8 +56,17 @@ class SegEvaluator(Evaluator):
                 cv2.imwrite(os.path.join(save_path, filename), result_img)
 
                 # save raw result
-                cv2.imwrite(os.path.join(save_path, filename, '_raw.png'), pred)
+                cv2.imwrite(os.path.join(save_path, filename.split('.')[0] + '_raw.png'), pred)
                 logger.info('Save the image ' + filename)
+
+                # also save the GT "label" image
+                # label_img = color_mask(label.astype(np.uint8), colors)
+                # cv2.imwrite(os.path.join(save_path, filename.split('.')[0] + '_gt.png'), label_img)
+                # save the rgb
+                cv2.imwrite(os.path.join(save_path, filename.split('.')[0] + '_rgb.png'), img*255)
+                # save the x
+                # cv2.imwrite(os.path.join(save_path, filename.split('.')[0] + '_x.png'), modal_x*255)
+
 
                 
             if self.show_image: 
@@ -91,6 +91,18 @@ class SegEvaluator(Evaluator):
                                 dataset.class_names, show_no_back=False)
         return result_line
     
+    def render_confusion_matrix(self, confusion_matrix, class_names):
+        plt.figure(figsize=(10, 8))
+        # numbers have one decimal place and NOT show the legend
+        sns.heatmap(confusion_matrix, annot=True, cmap='Blues', xticklabels=class_names, yticklabels=class_names, fmt='.1%', cbar=False)
+        plt.xlabel('Predicted')
+        plt.ylabel('Actual')
+        plt.title('Confusion Matrix')
+        plt.savefig(config.log_dir + '/confusion_matrix.png')
+        print('Confusion matrix saved at: ', config.log_dir + '/confusion_matrix.png')
+        # print the mean IoU on the console
+        print('Mean IoU: ', np.mean(np.diag(confusion_matrix)))
+    
     def process_confusion_matrix(self):
         """
         Takes the already built confusion matrix and processes it to get the IoU in percentage.
@@ -102,9 +114,8 @@ class SegEvaluator(Evaluator):
             # for each column, divide the number of correctly classified pixels by the total number of actual pixels
             for col in range(config.num_classes):
                 percentage_iou[row][col] = self.confusion_matrix[row][col] / row_sum
-        print(percentage_iou)
         # create an image from the confusion matrix
-        render_confusion_matrix(percentage_iou, config.class_names)
+        self.render_confusion_matrix(percentage_iou, config.class_names)
 
 
 

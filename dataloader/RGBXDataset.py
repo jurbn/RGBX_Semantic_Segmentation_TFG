@@ -36,7 +36,8 @@ class RGBXDataset(data.Dataset):
     def __getitem__(self, index):
         try:
             # Retrieve image metadata from COCO
-            img_data = self.coco.loadImgs(self.imgIds[index-2])[0]
+            item_id = self.imgIds[index-2]
+            img_data = self.coco.loadImgs([item_id])[0]
             img_id = img_data['id']
             img_name = img_data['file_name']
 
@@ -59,6 +60,26 @@ class RGBXDataset(data.Dataset):
             rgb = self._open_image(rgb_path, cv2.COLOR_BGR2RGB)
             x = self._open_image(x_path, cv2.IMREAD_ANYCOLOR | cv2.IMREAD_ANYDEPTH if self._x_single_channel else cv2.COLOR_BGR2RGB)
 
+            # reshape the images if needed
+            if rgb.shape[0] != 480 or rgb.shape[1] != 640:
+                rgb = cv2.resize(rgb, (640, 480), interpolation=cv2.INTER_LINEAR)
+            if x.shape[0] != 480 or x.shape[1] != 640:
+                x = cv2.resize(x, (640, 480), interpolation=cv2.INTER_LINEAR)
+
+            # rgb to black and white
+            if len(rgb.shape) == 3:
+                rgb = cv2.cvtColor(rgb, cv2.COLOR_RGB2GRAY)
+
+            if rgb is None:
+                print(f"RGB not found: {video_id}-{frame_id}")
+                rgb = np.zeros((480, 640, 3), dtype=np.uint8)
+            if x is None:
+                print(f"X not found: {video_id}-{frame_id}")
+                x = np.zeros((480, 640), dtype=np.uint16)
+
+            x = depth_to_colormap(x, 'jet', False)
+            print(f"RGB shape: {rgb.shape}, X shape: {x.shape}")
+
             if rgb is None or x is None:
                 raise FileNotFoundError(f"Image not found: {video_id}-{frame_id}")
 
@@ -73,6 +94,14 @@ class RGBXDataset(data.Dataset):
             ann_ids = self.coco.getAnnIds(imgIds=[img_id], catIds=self.catIds)
             anns = self.coco.loadAnns(ann_ids)
             gt = self._generate_mask(img_data['height'], img_data['width'], anns)
+
+            # resize the mask if needed
+            if gt.shape[0] != 480 or gt.shape[1] != 640:
+                gt = cv2.resize(gt, (640, 480), interpolation=cv2.INTER_NEAREST)
+
+            # if one of the images doesn't exist, all zeros
+            if gt is None:
+                gt = np.zeros((480, 640), dtype=np.uint8)
 
             # Apply preprocessing if any
             if self.preprocess is not None:
@@ -105,7 +134,13 @@ class RGBXDataset(data.Dataset):
     @staticmethod
     def _open_image(filepath, mode=cv2.IMREAD_COLOR):
         # always add cv2.IMREAD_UNCHANGED to read the image as it is
-        return cv2.imread(filepath, mode | cv2.IMREAD_UNCHANGED)
+        if filepath.endswith('.exr'):
+            image = cv2.imread(filepath, cv2.IMREAD_ANYCOLOR | cv2.IMREAD_ANYDEPTH)
+            # map the image to 65535 by looking at the maximum value
+            image = (image / image.max() * 65535).astype(np.uint16)
+            return image
+        else:
+            return cv2.imread(filepath, mode | cv2.IMREAD_UNCHANGED)
 
     @staticmethod
     def _gt_transform(gt):

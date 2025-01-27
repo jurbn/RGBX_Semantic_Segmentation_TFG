@@ -90,7 +90,7 @@ class Evaluator(object):
             else:
                 result_line = self.multi_process_evaluation()
 
-            results.write('Model: ' + model + '\n')
+            results.write(f'Model: {model}\n')
             results.write(result_line)
             results.write('\n')
             results.flush()
